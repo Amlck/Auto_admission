@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admission Note Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --accent: #007bff; --accent-dark: #0056b3; --border: #dee2e6;
+      --radius: 8px; --bg-start: #f8f9fa; --bg-end: #f0f2f5;
+      --card: #ffffff; --text-color: #343a40; --header-color: #212529;
+      --shadow: 0 4px 6px rgba(0, 0, 0, .05); --complete-green: #74B72E;
+      --ready-purple: #6f42c1; --toast-bg: #28a745;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "Segoe UI", Arial, sans-serif;
+      background-image: linear-gradient(to bottom, var(--bg-start), var(--bg-end));
+      background-size: cover; background-position: center; background-attachment: fixed;
+      min-height: 100vh; color: var(--text-color); line-height: 1.6; padding: 24px;
+    }
+    h1 { text-align: center; margin: 0 0 16px; color: var(--header-color); font-size: 2rem; }
+    h2 { margin: 0 0 16px; font-size: 1.5rem; color: var(--header-color); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    h3 { margin: 18px 0 10px; font-size: 1.1rem; color: var(--header-color); font-weight: 600; }
+
+    /* Block Layout */
+    #blockContainer { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; padding: 20px 0; }
+    .block {
+        background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+        padding: 20px; text-align: center; flex-basis: 220px; flex-grow: 1; cursor: pointer;
+        transition: transform .2s ease, box-shadow .2s ease, background-color .3s ease, color .3s ease;
+        box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; min-height: 100px;
+    }
+    .block:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0, 0, 0, .08); }
+    .block h2 { border-bottom: none; padding: 0; margin: 0; font-size: 1.2rem; }
+    .block.completed { background-color: var(--complete-green); color: white; border-color: #66a529; }
+
+    /* Settings Menu */
+    #settings-container { position: fixed; top: 15px; right: 15px; z-index: 999; }
+    #settings-gear { font-size: 2rem; font-weight: bold; line-height: 1; cursor: pointer; background: var(--card); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow); }
+    #settings-menu { display: none; position: absolute; right: 0; top: 50px; background: var(--card); border-radius: var(--radius); box-shadow: 0 5px 15px rgba(0,0,0,0.1); padding: 15px; width: 250px; }
+    #settings-menu button { width: 100%; padding: 8px 12px; margin-top: 10px; border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; }
+    #settings-menu input[type="file"] { display: none; }
+
+    /* Modal Styles */
+    #modalOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: none; align-items: center; justify-content: center; }
+    #modalOverlay.active { display: flex; }
+    #modalContent { background: var(--bg-end); padding: 0; border-radius: var(--radius); width: 90%; max-width: 850px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+    #modalClose { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 2rem; color: #888; cursor: pointer; line-height: 1; z-index: 1010; }
+    #modalBody { overflow-y: auto; padding: 20px 30px; }
+    #modalBody section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 24px; padding: 20px 24px; box-shadow: var(--shadow); }
+
+    #sectionsContainer { display: none; }
+
+    /* Controls at the bottom */
+    #controls { padding: 20px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-top: 20px; }
+    #controls .button-group { display: flex; gap: 15px; margin-bottom: 15px; }
+    #controls .button-group button { flex: 1; padding: 12px; font-size: 1.05rem; cursor: pointer; border: none; border-radius: var(--radius); transition: background-color .3s ease, transform .2s ease; }
+    #copyHistoryBtn { background-color: #ffc107; color: black; }
+    #copyFullNoteBtn { background-color: var(--accent); color: white; }
+    #copyFullNoteBtn.ready { background-color: var(--ready-purple); font-weight: bold; }
+    #noteOutput { height: 400px; font-family: 'Consolas', 'Monaco', monospace; background: #e9ecef; width: 100%; border: 1px solid var(--border); border-radius: var(--radius); }
+
+    /* Copy Toast Notification */
+    #copy-toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: var(--toast-bg); color: white; padding: 10px 20px; border-radius: var(--radius); box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 2000; transition: bottom 0.5s ease-in-out; }
+    #copy-toast.show { bottom: 30px; }
+
+    /* General Form Styles */
+    textarea, input[type="text"] { width: 100%; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color .2s, box-shadow .2s; background: #fdfdfd; }
+    textarea::placeholder, input[type="text"]::placeholder { color: #999; }
+    details { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 15px; background: #fdfefe; }
+    details summary { cursor: pointer; font-weight: 600; color: var(--header-color); list-style: none; display: flex; align-items: center; }
+    details summary::before { content: '►'; margin-right: 10px; transition: transform 0.2s; font-size: 0.8em; }
+    details[open] summary::before { transform: rotate(90deg); }
+    details > div { padding-top: 10px; border-top: 1px dashed var(--border); margin-top: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 16px; margin-top: 8px; }
+    .vitals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px 16px; }
+    label.toggle { display: flex; align-items: center; gap: 8px; font-size: .95rem; user-select: none; cursor: pointer; }
+    label.toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
+  </style>
+</head>
+<body>
+  <h1>Admission Note Dashboard</h1>
+
+  <div id="settings-container">
+    <div id="settings-gear">≡</div>
+    <div id="settings-menu">
+      <h4>Settings</h4>
+      <input type="file" id="background-input" accept="image/*" />
+      <button onclick="document.getElementById('background-input').click();">Change Background</button>
+      <button id="reset-background">Reset Background</button>
+      <button id="clear-data" style="background-color: #dc3545; color: white;">Clear for New Patient</button>
+    </div>
+  </div>
+
+  <p style="text-align:center; max-width: 600px; margin: 0 auto 20px;">Click a block to enter data. The block will turn green when it contains data.</p>
+
+  <div id="blockContainer"></div>
+  <div id="modalOverlay"><div id="modalContent"><button id="modalClose">×</button><div id="modalBody"></div></div></div>
+
+  <div id="sectionsContainer">
+    <section id="chiefSection" data-title="Chief Complaint"><h2>Chief Complaint & Present Illness</h2><label>Informant: <input type="text" id="informant" placeholder="Patient and medical records"/></label><textarea id="ccpi" rows="5" placeholder="e.g., Exertional chest tightness for half of year..."></textarea></section>
+    <section id="historySection" data-title="History"><h2>Routine History</h2><h3>Patient History & Present Illness Narrative</h3><textarea id="patientHistoryNarrative" rows="12" placeholder="e.g., This is a 31-year-old woman with..."></textarea><h3>Past Medical History (Structured)</h3><textarea id="hist_pmh" rows="4" placeholder="1. Unclassified connective tissue disease...
+2. Suspected secondary Sjogren's syndrome"></textarea><h3>Medication Allergy</h3><div class="grid"><label class="toggle"><input type="checkbox" id="hist_med_allergy_denied"/>Denied</label><input type="text" id="hist_med_allergy_details" placeholder="Details (e.g., Penicillin, Rash)"/><label>Date: <input type="text" id="hist_med_allergy_date" placeholder="YYYY/MM/DD"/></label></div><h3>Medication ADR</h3><textarea id="hist_med_adr" rows="1" placeholder="unknown"></textarea><h3>Allergy to Medical Device</h3><div class="grid"><label class="toggle"><input type="checkbox" id="hist_device_allergy_denied"/>Denied</label><input type="text" id="hist_device_allergy_details" placeholder="Details (e.g., Latex, Swelling)"/><label>Date: <input type="text" id="hist_device_allergy_date" placeholder="YYYY/MM/DD"/></label></div><h3>Current Medication</h3><label>台大醫院: <input type="text" id="hist_current_med_ntuh" placeholder="Can be left blank or used for copy-paste"/></label><label>Other: <input type="text" id="hist_current_med_other" placeholder="denied"/></label><label>中草藥 (TCM): <input type="text" id="hist_current_med_tcm" placeholder="denied"/></label><label>保健食品 (Supplements): <input type="text" id="hist_current_med_supplements" placeholder="denied"/></label><h3>Hospitalization history</h3><textarea id="hist_hospitalization_history" rows="4" placeholder="e.g., 入院日期:YYYY_MM_DD 出院日期:YYYY_MM_DD 診斷:"></textarea><h3>Surgical history</h3><textarea id="hist_surgical_history_detailed" rows="3" placeholder="denied"></textarea><h3>Family History</h3><div class="grid"><label class="toggle"><input type="checkbox" id="fh_HTN"/>Hypertension</label><label class="toggle"><input type="checkbox" id="fh_DM"/>Diabetes</label><label class="toggle"><input type="checkbox" id="fh_DLP"/>Dyslipidemia</label><label class="toggle"><input type="checkbox" id="fh_CA"/>Cancer</label><label class="toggle"><input type="checkbox" id="fh_CAD"/>CAD</label></div><label>Family History Details:<textarea id="fh_details" rows="2" placeholder="e.g., (外)Grandfather: DM, HTN
+Grandmother: DM, HTN"></textarea></label><h3>TOCC</h3><details><summary>Travel, Occupation, Contact, Cluster</summary><div><label>Travel: <input type="text" id="hist_tocc_travel" placeholder="denied"/></label><label>Occupation: <input type="text" id="hist_tocc_occupation" placeholder="Office worker"/></label><label>Cluster and contact: <input type="text" id="hist_tocc_cluster" placeholder="denied"/></label></div></details><h3>ABC</h3><details><summary>Personal Habits</summary><div><label>Alcohol: <input type="text" id="hist_abc_alcohol" placeholder="denied"/></label><label>Betel nuts: <input type="text" id="hist_abc_betel" placeholder="denied"/></label><label>Smoking: <input type="text" id="hist_abc_smoking" placeholder="denied"/></label></div></details></section>
+    <section id="psychosocialSection" data-title="Psychosocial"><h2>Psychosocial Assessment</h2><textarea id="psychosocial_assessment" rows="2" placeholder="pending"></textarea></section>
+    <section id="dischargePlanningSection" data-title="Discharge Plan"><h2>Discharge Planning</h2><div class="grid"><label>管路留置狀況：<input type="text" id="dp_catheter" placeholder="Nil"/></label><label>日常生活功能分數：<input type="text" id="dp_adl" placeholder="100"/></label><label>預期出院後居住場所：<input type="text" id="dp_residence" placeholder="與家人同住"/></label><label>預期出院後主要照顧者：<input type="text" id="dp_caregiver" placeholder="自己"/></label><label>出院規劃收案篩檢：<input type="text" id="dp_screening" placeholder="一般病患"/></label></div></section>
+    <section id="vitalsSection" data-title="Vitals"><h2>Vitals</h2><div class="vitals-grid"><label>Height (cm):<input type="text" id="vitals_bh"/></label><label>Weight (kg):<input type="text" id="vitals_bw"/></label><label>Temp (°C):<input type="text" id="vitals_t"/></label><label>Pulse (bpm):<input type="text" id="vitals_p"/></label><label>Resp (/min):<input type="text" id="vitals_r"/></label><label>BP (mmHg):<input type="text" id="vitals_bp"/></label><label>Pain Score:<input type="text" id="vitals_pain"/></label></div></section>
+
+    <!-- RESTORED PE SECTION -->
+    <section id="peSection" data-title="Physical Exam"><h2>Physical Examination</h2><h3>PE Narrative</h3><textarea id="pe_details" rows="3" placeholder="e.g., General appearance: fair body figure
+breathing sound: crackles(+, right upper lobe)"></textarea><details open><summary>Neurological</summary><div><label>Consciousness: <input type="text" id="pe_neuro_conscious" placeholder="alert and oriented, GCS: E4M6V5"/></label><label>Muscle power: <input type="text" id="pe_neuro_power" placeholder="can not perform"/></label><label>Gait: <input type="text" id="pe_neuro_gait" placeholder="no test"/></label></div></details><details><summary>HEENT</summary><div class="grid"><label class="toggle"><input type="checkbox" id="pe_head_raccoon"/>Raccoon eye</label><label class="toggle"><input type="checkbox" id="pe_head_rash"/>Rash</label><label class="toggle"><input type="checkbox" id="pe_pupil_abn"/>Pupil abnormal</label><label class="toggle"><input type="checkbox" id="pe_eom_lim"/>EOM limited</label><label class="toggle"><input type="checkbox" id="pe_conj_pale"/>Conjunctiva pale</label><label class="toggle"><input type="checkbox" id="pe_sclera_icteric"/>Sclera icteric</label><label class="toggle"><input type="checkbox" id="pe_ear_def"/>Ear deformity</label><label class="toggle"><input type="checkbox" id="pe_ear_dis"/>Ear discharge</label><label class="toggle"><input type="checkbox" id="pe_ear_hi"/>Hearing impairment</label><label class="toggle"><input type="checkbox" id="pe_throat_mass"/>Throat mass</label><label class="toggle"><input type="checkbox" id="pe_throat_ulcer"/>Throat ulcer</label><label class="toggle"><input type="checkbox" id="pe_throat_ng"/>NG tube</label></div></details><details><summary>Neck</summary><div class="grid"><label class="toggle"><input type="checkbox" id="pe_neck_stiff"/>Stiffness</label><label class="toggle"><input type="checkbox" id="pe_neck_bruit"/>Bruit</label><label class="toggle"><input type="checkbox" id="pe_neck_jvp"/>Jugular engorgement</label><label class="toggle"><input type="checkbox" id="pe_neck_goiter"/>Goiter</label><label class="toggle"><input type="checkbox" id="pe_neck_lymph"/>Lymphadenopathy</label></div></details><details><summary>Chest</summary><div class="grid"><label class="toggle"><input type="checkbox" id="pe_chest_def"/>Chest deformity</label><label class="toggle"><input type="checkbox" id="pe_chest_spider"/>Spider angioma</label><label class="toggle"><input type="checkbox" id="pe_chest_lump"/>Lumps</label><label class="toggle"><input type="checkbox" id="pe_chest_discharge"/>Discharge</label><label class="toggle"><input type="checkbox" id="pe_chest_tender"/>Tenderness</label><label class="toggle"><input type="checkbox" id="pe_chest_crackles"/>Crackles</label><label class="toggle"><input type="checkbox" id="pe_chest_wheeze"/>Wheezing</label><label class="toggle"><input type="checkbox" id="pe_chest_rhonchi"/>Rhonchi</label><label class="toggle"><input type="checkbox" id="pe_chest_stridor"/>Stridor</label></div></details><details><summary>Heart</summary><div class="grid"><label class="toggle"><input type="checkbox" id="pe_heart_irreg"/>Irregular beat</label><label class="toggle"><input type="checkbox" id="pe_heart_murmur"/>Murmur</label><label class="toggle"><input type="checkbox" id="pe_heart_thrill"/>Thrill</label><label class="toggle"><input type="checkbox" id="pe_heart_pmi"/>Abnormal PMI</label></div></details><details><summary>Abdomen</summary><div class="grid"><label class="toggle"><input type="checkbox" id="pe_abd_dist"/>Distension</label><label class="toggle"><input type="checkbox" id="pe_abd_caput"/>Caput medusa</label><label class="toggle"><input type="checkbox" id="pe_abd_mass"/>Palpable mass</label><label class="toggle"><input type="checkbox" id="pe_abd_tender"/>Tenderness</label><label class="toggle"><input type="checkbox" id="pe_abd_hjr"/>Hepato-jugular reflux</label></div></details><details><summary>Back</summary><div class="grid"><label class="toggle"><input type="checkbox" id="pe_back_cv"/>CV angle knocking pain</label></div></details><details><summary>Extremities</summary><div class="grid"><label class="toggle"><input type="checkbox" id="pe_ext_lim"/>Limitation of movement</label><label class="toggle"><input type="checkbox" id="pe_ext_def"/>Deformity</label><label class="toggle"><input type="checkbox" id="pe_ext_cyano"/>Cyanosis</label><label class="toggle"><input type="checkbox" id="pe_ext_edema"/>Pitting edema</label></div></details><details><summary>Skin</summary><div class="grid"><label class="toggle"><input type="checkbox" id="pe_skin_rash"/>Rash</label><label class="toggle"><input type="checkbox" id="pe_skin_tumor"/>Tumor</label><label class="toggle"><input type="checkbox" id="pe_skin_pete"/>Petechiae</label><label class="toggle"><input type="checkbox" id="pe_skin_ecch"/>Ecchymosis</label><label class="toggle"><input type="checkbox" id="pe_skin_purp"/>Purpura</label><label class="toggle"><input type="checkbox" id="pe_skin_depig"/>Depigmentation</label><label class="toggle"><input type="checkbox" id="pe_skin_hyperpig"/>Abnormal pigmentation</label><label class="toggle"><input type="checkbox" id="pe_skin_tel"/>Telangiectasia</label></div></details></section>
+
+    <!-- RESTORED ROS SECTION -->
+    <section id="rosSection" data-title="Review of Systems"><h2>Review of Systems (ROS)</h2><h3>ROS Details</h3><textarea id="ros_details" rows="2" placeholder="e.g., Respiratory: dyspnea(-), chest pain(-), productive cough (+, for 6 months)"></textarea><details open><summary>Systemic</summary><div class="grid"><label class="toggle"><input type="checkbox" id="ros_sys_fever"/>fever</label><label class="toggle"><input type="checkbox" id="ros_sys_chills"/>chills</label><label class="toggle"><input type="checkbox" id="ros_sys_night_sweats"/>night sweats</label><label class="toggle"><input type="checkbox" id="ros_sys_fatigue"/>fatigue</label><label class="toggle"><input type="checkbox" id="ros_sys_conscious_dist"/>consciousness disturbance</label><label class="toggle"><input type="checkbox" id="ros_sys_insomnia"/>insomnia</label><label class="toggle"><input type="checkbox" id="ros_sys_weight_change"/>weight change</label><label class="toggle"><input type="checkbox" id="ros_sys_appetite_dec"/>decreased appetite</label></div></details><details><summary>HEENT</summary><div class="grid"><label class="toggle"><input type="checkbox" id="ros_heent_headache"/>headache</label><label class="toggle"><input type="checkbox" id="ros_heent_dizziness"/>dizziness</label><label class="toggle"><input type="checkbox" id="ros_heent_vertigo"/>vertigo</label><label class="toggle"><input type="checkbox" id="ros_heent_diplopia"/>diplopia</label><label class="toggle"><input type="checkbox" id="ros_heent_visual_field_defect"/>visual field defect</label><label class="toggle"><input type="checkbox" id="ros_heent_blurred_vision"/>blurred vision</label><label class="toggle"><input type="checkbox" id="ros_heent_ocular_pain"/>ocular pain</label><label class="toggle"><input type="checkbox" id="ros_heent_tinnitus"/>tinnitus</label><label class="toggle"><input type="checkbox" id="ros_heent_otalgia"/>otalgia</label><label class="toggle"><input type="checkbox" id="ros_heent_otorrhea"/>otorrhea</label><label class="toggle"><input type="checkbox" id="ros_heent_hearing_impairment"/>hearing impairment</label><label class="toggle"><input type="checkbox" id="ros_heent_nasal_congestion"/>nasal congestion</label><label class="toggle"><input type="checkbox" id="ros_heent_nasal_discharge"/>nasal discharge</label><label class="toggle"><input type="checkbox" id="ros_heent_sore_throat"/>sore throat</label><label class="toggle"><input type="checkbox" id="ros_heent_gum_bleeding"/>gum bleeding</label><label class="toggle"><input type="checkbox" id="ros_heent_dysphagia"/>dysphagia</label><label class="toggle"><input type="checkbox" id="ros_heent_hoarseness"/>hoarseness</label><label class="toggle"><input type="checkbox" id="ros_heent_oral_ulcers"/>oral ulcers</label></div></details><details><summary>Cardiorespiratory</summary><div class="grid"><label class="toggle"><input type="checkbox" id="ros_cardio_chest_pain"/>chest pain</label><label class="toggle"><input type="checkbox" id="ros_cardio_exertional_dyspnea"/>exertional dyspnea</label><label class="toggle"><input type="checkbox" id="ros_cardio_nocturnal_dyspnea"/>nocturnal dyspnea</label><label class="toggle"><input type="checkbox" id="ros_cardio_orthopnea"/>orthopnea</label><label class="toggle"><input type="checkbox" id="ros_cardio_pitting_edema"/>pitting edema</label><label class="toggle"><input type="checkbox" id="ros_cardio_syncope"/>syncope</label><label class="toggle"><input type="checkbox" id="ros_cardio_palpitation"/>palpitation</label><label class="toggle"><input type="checkbox" id="ros_cardio_intermittent_claudication"/>intermittent claudication</label><label class="toggle"><input type="checkbox" id="ros_cardio_dyspnea"/>dyspnea</label><label class="toggle"><input type="checkbox" id="ros_cardio_cough"/>cough</label><label class="toggle"><input type="checkbox" id="ros_cardio_sputum"/>sputum</label><label class="toggle"><input type="checkbox" id="ros_cardio_hemoptysis"/>hemoptysis</label><label class="toggle"><input type="checkbox" id="ros_cardio_wheezes"/>wheezes</label><label class="toggle"><input type="checkbox" id="ros_cardio_chest_tightness"/>chest tightness</label></div></details><details><summary>Gastrointestinal</summary><div class="grid"><label class="toggle"><input type="checkbox" id="ros_gi_anorexia"/>anorexia</label><label class="toggle"><input type="checkbox" id="ros_gi_nausea"/>nausea</label><label class="toggle"><input type="checkbox" id="ros_gi_vomiting"/>vomiting</label><label class="toggle"><input type="checkbox" id="ros_gi_acid_regurgitation"/>acid regurgitation</label><label class="toggle"><input type="checkbox" id="ros_gi_abdominal_pain"/>abdominal pain</label><label class="toggle"><input type="checkbox" id="ros_gi_abdominal_distention"/>abdominal distention</label><label class="toggle"><input type="checkbox" id="ros_gi_dysphagia"/>dysphagia</label><label class="toggle"><input type="checkbox" id="ros_gi_dyspepsia"/>dyspepsia</label><label class="toggle"><input type="checkbox" id="ros_gi_hematemesis"/>hematemesis</label><label class="toggle"><input type="checkbox" id="ros_gi_diarrhea"/>diarrhea</label><label class="toggle"><input type="checkbox" id="ros_gi_constipation"/>constipation</label><label class="toggle"><input type="checkbox" id="ros_gi_melena"/>melena</label><label class="toggle"><input type="checkbox" id="ros_gi_hematochezia"/>hematochezia</label><label class="toggle"><input type="checkbox" id="ros_gi_tenesmus"/>tenesmus</label><label class="toggle"><input type="checkbox" id="ros_gi_small_caliber_stool"/>small caliber stool</label></div></details><details><summary>Genitourinary</summary><div class="grid"><label class="toggle"><input type="checkbox" id="ros_gu_urinary_frequency"/>urinary frequency</label><label class="toggle"><input type="checkbox" id="ros_gu_urgency"/>urgency</label><label class="toggle"><input type="checkbox" id="ros_gu_nocturia"/>nocturia</label><label class="toggle"><input type="checkbox" id="ros_gu_incontinence"/>incontinence</label><label class="toggle"><input type="checkbox" id="ros_gu_weak_stream"/>weak urinary stream</label><label class="toggle"><input type="checkbox" id="ros_gu_hesitancy"/>hesitancy</label><label class="toggle"><input type="checkbox" id="ros_gu_incomplete_voiding"/>incomplete voiding</label><label class="toggle"><input type="checkbox" id="ros_gu_terminal_dribbling"/>terminal dribbling</label><label class="toggle"><input type="checkbox" id="ros_gu_dysuria"/>dysuria</label><label class="toggle"><input type="checkbox" id="ros_gu_hematuria"/>hematuria</label><label class="toggle"><input type="checkbox" id="ros_gu_flank_pain"/>flank pain</label><label class="toggle"><input type="checkbox" id="ros_gu_polyuria"/>polyuria</label><label class="toggle"><input type="checkbox" id="ros_gu_oliguria"/>oliguria</label></div></details><details><summary>Musculoskeletal</summary><div class="grid"><label class="toggle"><input type="checkbox" id="ros_msk_arthralgia"/>arthralgia</label><label class="toggle"><input type="checkbox" id="ros_msk_joint_stiffness"/>joint stiffness</label><label class="toggle"><input type="checkbox" id="ros_msk_joint_swelling"/>joint swelling</label><label class="toggle"><input type="checkbox" id="ros_msk_myalgia"/>myalgia</label><label class="toggle"><input type="checkbox" id="ros_msk_cramps"/>cramps</label><label class="toggle"><input type="checkbox" id="ros_msk_bone_pain"/>bone pain</label><label class="toggle"><input type="checkbox" id="ros_msk_back_pain"/>back pain</label><label class="toggle"><input type="checkbox" id="ros_msk_fractures"/>fractures</label></div></details><details><summary>Nervous</summary><div class="grid"><label class="toggle"><input type="checkbox" id="ros_neuro_blurred_vision"/>blurred vision</label><label class="toggle"><input type="checkbox" id="ros_neuro_hearing_impairment"/>hearing impairment</label><label class="toggle"><input type="checkbox" id="ros_neuro_speech_problem"/>speech problem</label><label class="toggle"><input type="checkbox" id="ros_neuro_numbness"/>numbness</label><label class="toggle"><input type="checkbox" id="ros_neuro_paraesthesia"/>paraesthesia</label><label class="toggle"><input type="checkbox" id="ros_neuro_allodynia"/>allodynia</label><label class="toggle"><input type="checkbox" id="ros_neuro_paresis_plegia"/>paresis/plegia</label><label class="toggle"><input type="checkbox" id="ros_neuro_gait_disturbance"/>gait disturbance</label><label class="toggle"><input type="checkbox" id="ros_neuro_sphincter_disturbance"/>sphincter disturbance</label><label class="toggle"><input type="checkbox" id="ros_neuro_convulsion"/>convulsion</label><label class="toggle"><input type="checkbox" id="ros_neuro_resting_tremor"/>resting tremor</label></div></details><details><summary>Skin</summary><div class="grid"><label class="toggle"><input type="checkbox" id="ros_skin_color_changes"/>color changes</label><label class="toggle"><input type="checkbox" id="ros_skin_jaundice"/>jaundice</label><label class="toggle"><input type="checkbox" id="ros_skin_rash"/>rash</label><label class="toggle"><input type="checkbox" id="ros_skin_itching"/>itching</label><label class="toggle"><input type="checkbox" id="ros_skin_petechiae"/>petechiae</label><label class="toggle"><input type="checkbox" id="ros_skin_ecchymoses"/>ecchymoses</label><label class="toggle"><input type="checkbox" id="ros_skin_purpura"/>purpura</label></div></details></section>
+
+    <section id="planSection" data-title="SOAP Note"><h2>Medical Needs and Care Plan</h2><label>Age and sex: <input type="text" id="plan_age_sex" placeholder="e.g., 31-year-old female"/></label><h3>S: Subjective</h3><p>Auto-filled from Chief Complaint.</p><h3>O: Objective</h3><h4>PE Findings</h4><textarea id="plan_pe_findings" rows="2" placeholder="e.g., breathing sound: crackles(+, right upper lobe)"></textarea><h4>Lab</h4><textarea id="plan_lab_data" rows="4" placeholder="Significant lab data (e.g., WBC 8.15, Seg 75.6, hsCRP 7.64)"></textarea><h4>EKG</h4><div class="grid"><label>Date: <input type="text" id="plan_ekg_date" placeholder="YYYY/MM/DD"/></label><label>Interpretation: <input type="text" id="plan_ekg_interp" placeholder="Normal sinus rhythm"/></label></div><h4>CXR</h4><div class="grid"><label>Date: <input type="text" id="plan_cxr_date" placeholder="YYYY/MM/DD"/></label><label>Interpretation: <input type="text" id="plan_cxr_interp" placeholder="suspicious increased infiltration over right lung field"/></label></div><h3>A: Assessment</h3><h4>Active Problems</h4><textarea id="plan_assessment_active" rows="2" placeholder="#. Fever, suspect bronchopneumonia..."></textarea><h4>Underlying</h4><textarea id="plan_assessment_underlying" rows="3" placeholder="1. Unclassified connective tissue disease..."></textarea><h3>P: Plan</h3><textarea id="plan_plan" rows="3" placeholder="1. Keep Sintrix and pursue culture report...
+2. Solu-medrol 6 mg Q8H
+3. check IgG/IgA/IgM..."></textarea><label>Treatment Goal: <input type="text" id="plan_treatment_goal" placeholder="cough and sputum resolved and BT<38'C"/></label></section>
+  </div>
+
+  <div id="controls">
+    <div class="button-group">
+      <button id="copyHistoryBtn">Copy History Block</button>
+      <button id="copyFullNoteBtn">Copy Full Note</button>
+    </div>
+    <h2>Output Preview</h2>
+    <textarea id="noteOutput" readonly></textarea>
+  </div>
+
+  <div id="copy-toast">Note Copied!</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENT SELECTORS ---
+    const blockContainer = document.getElementById('blockContainer');
+    const sectionsContainer = document.getElementById('sectionsContainer');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+    const copyFullNoteBtn = document.getElementById('copyFullNoteBtn');
+    const copyHistoryBtn = document.getElementById('copyHistoryBtn');
+    const noteOutput = document.getElementById('noteOutput');
+    const copyToast = document.getElementById('copy-toast');
+    const settingsGear = document.getElementById('settings-gear');
+    const settingsMenu = document.getElementById('settings-menu');
+    const backgroundInput = document.getElementById('background-input');
+    const resetBackgroundBtn = document.getElementById('reset-background');
+    const clearDataBtn = document.getElementById('clear-data');
+    const allSections = Array.from(sectionsContainer.querySelectorAll('section'));
+    const blocks = {};
+
+    // --- STATE MANAGEMENT & UI UPDATES ---
+    const isSectionFilled = (section) => {
+        const inputs = section.querySelectorAll('input[type="text"]:not([readonly]), textarea');
+        for (const input of inputs) { if (input.value && input.value.trim() !== '') return true; }
+        const checkboxes = section.querySelectorAll('input[type="checkbox"]');
+        for (const checkbox of checkboxes) { if (checkbox.checked) return true; }
+        return false;
+    };
+
+    const updateUIState = () => {
+        let allCompleted = true;
+        allSections.forEach(section => {
+            const block = blocks[section.id];
+            if (isSectionFilled(section)) {
+                block.classList.add('completed');
+            } else {
+                block.classList.remove('completed');
+                allCompleted = false;
+            }
+        });
+        copyFullNoteBtn.classList.toggle('ready', allCompleted);
+    };
+
+    const showToast = (message) => {
+        copyToast.textContent = message;
+        copyToast.classList.add('show');
+        setTimeout(() => copyToast.classList.remove('show'), 2000);
+    };
+
+    // --- LOCAL STORAGE ---
+    const saveToLocalStorage = () => {
+        allSections.forEach(section => {
+            section.querySelectorAll('input[type="text"], textarea, input[type="checkbox"]').forEach(el => {
+                const key = el.id;
+                if (!key) return;
+                const value = el.type === 'checkbox' ? el.checked : el.value;
+                localStorage.setItem(key, value);
+            });
+        });
+    };
+
+    const loadFromLocalStorage = () => {
+        allSections.forEach(section => {
+            section.querySelectorAll('input[type="text"], textarea, input[type="checkbox"]').forEach(el => {
+                const key = el.id;
+                if (!key) return;
+                const savedValue = localStorage.getItem(key);
+                if (savedValue !== null) {
+                    if (el.type === 'checkbox') {
+                        el.checked = savedValue === 'true';
+                    } else {
+                        el.value = savedValue;
+                    }
+                }
+            });
+        });
+        const savedBg = localStorage.getItem('userBackground');
+        if (savedBg) {
+            document.body.style.backgroundImage = `url(${savedBg})`;
+        }
+    };
+
+    // --- INITIALIZATION ---
+    allSections.forEach(section => {
+        const block = document.createElement('div');
+        block.className = 'block';
+        block.dataset.sectionId = section.id;
+        block.innerHTML = `<h2>${section.dataset.title || 'Section'}</h2>`;
+        blockContainer.appendChild(block);
+        blocks[section.id] = block;
+    });
+
+    loadFromLocalStorage();
+    updateUIState();
+
+    // --- EVENT LISTENERS ---
+    const openModal = (sectionId) => {
+        modalBody.appendChild(document.getElementById(sectionId));
+        modalOverlay.classList.add('active');
+    };
+
+    const closeModal = () => {
+        const section = modalBody.querySelector('section');
+        if (section) {
+            sectionsContainer.appendChild(section);
+            modalOverlay.classList.remove('active');
+            saveToLocalStorage();
+            updateUIState();
+        }
+    };
+
+    blockContainer.addEventListener('click', (e) => {
+        const block = e.target.closest('.block');
+        if (block) openModal(block.dataset.sectionId);
+    });
+
+    modalClose.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeModal();
+    });
+
+    settingsGear.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
+    });
+    document.addEventListener('click', (e) => {
+        if (!settingsMenu.contains(e.target) && e.target !== settingsGear) {
+            settingsMenu.style.display = 'none';
+        }
+    });
+
+    clearDataBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+            localStorage.clear();
+            location.reload();
+        }
+    });
+
+    backgroundInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            document.body.style.backgroundImage = `url(${event.target.result})`;
+            localStorage.setItem('userBackground', event.target.result);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    resetBackgroundBtn.addEventListener('click', () => {
+        document.body.style.backgroundImage = `linear-gradient(to bottom, var(--bg-start), var(--bg-end))`;
+        localStorage.removeItem('userBackground');
+    });
+
+    // --- NOTE GENERATION ---
+    const getVal = (id, def = '') => (document.getElementById(id) ? (document.getElementById(id).value || def).trim() : def);
+    const plusMinus = (id) => (document.getElementById(id) && document.getElementById(id).checked) ? "■" : "□";
+
+    const compileChecklistSection = (sectionId, title) => {
+        const section = document.getElementById(sectionId);
+        if (!section) return "";
+        let output = `<${title}>\n`;
+        const lines = Array.from(section.querySelectorAll('input[type="checkbox"]')).map(cb => `  ${plusMinus(cb.id)} ${cb.parentElement.textContent.trim()}`);
+        return output + lines.join('\n');
+    };
+
+    const assembleSecondaryHistory = () => {
+        const medAllergyStr = `${getVal('hist_med_allergy_details')} ${getVal('hist_med_allergy_date')}`.trim() || (document.getElementById('hist_med_allergy_denied').checked ? 'No known' : 'unknown');
+        const deviceAllergyStr = `${getVal('hist_device_allergy_details')} ${getVal('hist_device_allergy_date')}`.trim() || (document.getElementById('hist_device_allergy_denied').checked ? 'No known' : 'unknown');
+
+        let fhStr = [`HTN ${plusMinus('fh_HTN')}`,`DM ${plusMinus('fh_DM')}`,`DLP ${plusMinus('fh_DLP')}`,`Cancer ${plusMinus('fh_CA')}`,`CAD ${plusMinus('fh_CAD')}`].join(', ');
+        if (getVal('fh_details')) fhStr += `\n${getVal('fh_details')}`;
+
+        return `[Surgical history]
+${getVal('hist_surgical_history_detailed', 'denied')}
+
+[Hospitalization history]
+${getVal('hist_hospitalization_history', 'denied')}
+
+Current Medication:
+台大醫院: ${getVal('hist_current_med_ntuh', 'nil')}
+Other: ${getVal('hist_current_med_other', 'denied')}
+中草藥: ${getVal('hist_current_med_tcm', 'denied')}
+保健食品: ${getVal('hist_current_med_supplements', 'denied')}
+
+Allergy:
+- Medication Allergy: ${medAllergyStr}
+- Medication ADR: ${getVal('hist_med_adr', 'unknown')}
+- Allergy to Medical Device and Materials: ${deviceAllergyStr}
+
+Family History:
+${fhStr}
+
+TOCC:
+- Travel history: ${getVal('hist_tocc_travel', 'denied')}
+- Occupation: ${getVal('hist_tocc_occupation', 'N/A')}
+- Cluster and contact: ${getVal('hist_tocc_cluster', 'denied')}
+
+Social History:
+- Alcohol: ${getVal('hist_abc_alcohol', 'denied')}
+- Betel nuts: ${getVal('hist_abc_betel', 'denied')}
+- Smoking: ${getVal('hist_abc_smoking', 'denied')}`;
+    };
+
+    const assembleHistoryBlockForCopy = () => {
+        return `病史(Patient History)\n${getVal('patientHistoryNarrative', 'Not specified')}\n\n[Past medical history]\n${getVal('hist_pmh', 'Not specified')}\n\n${assembleSecondaryHistory()}`;
+    };
+
+    const assembleFullNoteText = () => {
+        const chiefComplaint = `主訴(Chief Complaint)\nInformant: ${getVal('informant')}\n${getVal('ccpi')}`;
+        const pastMedicalHistory = `[Past medical history]\n${getVal('hist_pmh', 'Not specified')}`;
+        const patientHistoryNarrative = `病史(Patient History)\n${getVal('patientHistoryNarrative', 'Not specified')}`;
+        const secondaryHistory = assembleSecondaryHistory();
+        const vitalsText = `BH: ${getVal('vitals_bh', '--')} cm, BW: ${getVal('vitals_bw', '--')} kg, T: ${getVal('vitals_t', '--')} C, P: ${getVal('vitals_p', '--')} bpm, R: ${getVal('vitals_r', '--')} /min, BP: ${getVal('vitals_bp', '--/--')} mmHg, Pain score: ${getVal('vitals_pain', '--')}`;
+
+        let peText = `${getVal('pe_details')}`;
+        document.querySelectorAll('#peSection details').forEach(det => {
+            const title = det.querySelector('summary').textContent.trim();
+            peText += `\n\n<${title}>\n`;
+            let lines = [];
+            det.querySelectorAll('input[type=text]').forEach(input => lines.push(`  ${input.parentElement.textContent.trim()} ${input.value}`));
+            det.querySelectorAll('input[type=checkbox]').forEach(cb => lines.push(`  ${plusMinus(cb.id)} ${cb.parentElement.textContent.trim()}`));
+            peText += lines.join('\n');
+        });
+
+        let rosText = `系統性回顧(Review of Systems)\n${getVal('ros_details')}`;
+        document.querySelectorAll('#rosSection details').forEach(det => {
+            const sysTitle=det.querySelector('summary').textContent.trim();
+            const items=det.querySelectorAll('input[type="checkbox"]');
+            const formattedParts = Array.from(items).map(cb => `${plusMinus(cb.id)} ${cb.parentElement.textContent.trim()}`);
+            rosText += `\n\n- ${sysTitle}:\n    ${formattedParts.join(', ')}`;
+        });
+
+        const planText = `${getVal('plan_age_sex', 'Age/Sex not specified')}
+S: ${getVal('ccpi')}
+O:
+[PE] ${getVal('plan_pe_findings')}
+[Lab] ${getVal('plan_lab_data')}
+[EKG] ${getVal('plan_ekg_date')}: ${getVal('plan_ekg_interp')}
+[CXR] ${getVal('plan_cxr_date')}: ${getVal('plan_cxr_interp')}
+A:
+[Active] ${getVal('plan_assessment_active')}
+[Underlying] ${getVal('plan_assessment_underlying')}
+P: ${getVal('plan_plan')}
+Treatment goal: ${getVal('plan_treatment_goal')}`;
+
+        return [
+            chiefComplaint, pastMedicalHistory, patientHistoryNarrative, secondaryHistory,
+            `Psychosocial Assessment\n${getVal('psychosocial_assessment')}`,
+            `Discharge Planning\n- 管路留置狀況：${getVal('dp_catheter')}\n- 日常生活功能分數：${getVal('dp_adl')}\n- 預期出院後居住場所：${getVal('dp_residence')}\n- 預期出院後主要照顧者：${getVal('dp_caregiver')}\n- 出院規劃收案篩檢：${getVal('dp_screening')}`,
+            vitalsText, peText.trim(), rosText.trim(), planText
+        ].join('\n\n');
+    };
+
+    copyHistoryBtn.addEventListener('click', () => {
+        const textToCopy = assembleHistoryBlockForCopy();
+        noteOutput.value = textToCopy;
+        navigator.clipboard.writeText(textToCopy).then(() => showToast('History Block Copied!'));
+    });
+
+    copyFullNoteBtn.addEventListener('click', () => {
+        const textToCopy = assembleFullNoteText();
+        noteOutput.value = textToCopy;
+        navigator.clipboard.writeText(textToCopy).then(() => showToast('Full Note Copied!'));
+    });
+});
+</script>
+</body>
+</html>
