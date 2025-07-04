@@ -178,6 +178,15 @@ document.addEventListener("DOMContentLoaded", () => {
       ? "■"
       : "□";
 
+  const ageSexSentence = () => {
+    const age = getVal("hist_age");
+    const sex = getVal("hist_sex");
+    if (age && sex) {
+      return `This is a ${age}-year-old ${sex} with the following history:`;
+    }
+    return "";
+  };
+
   const compileChecklistSection = (sectionId, title) => {
     const section = document.getElementById(sectionId);
     if (!section) return "";
@@ -243,13 +252,21 @@ Social History:
   };
 
   const assembleHistoryBlockForCopy = () => {
-    return `病史(Patient History)\n${getVal("patientHistoryNarrative", "Not specified")}\n\n[Past medical history]\n${getVal("hist_pmh", "Not specified")}\n\n${assembleSecondaryHistory()}`;
+    const intro = ageSexSentence();
+    const pmh = getVal("hist_pmh", "Not specified");
+    const pi = getVal("patientHistoryNarrative", "Not specified");
+    let lines = [];
+    if (intro) lines.push(intro);
+    if (pmh) lines.push(pmh);
+    if (pi) lines.push(pi);
+    return `${lines.join("\n")}\n\n${assembleSecondaryHistory()}`;
   };
 
   const assembleFullNoteText = () => {
     const chiefComplaint = `主訴(Chief Complaint)\nInformant: ${getVal("informant")}\n${getVal("ccpi")}`;
     const pastMedicalHistory = `[Past medical history]\n${getVal("hist_pmh", "Not specified")}`;
-    const patientHistoryNarrative = `病史(Patient History)\n${getVal("patientHistoryNarrative", "Not specified")}`;
+    const presentIllness = getVal("patientHistoryNarrative", "Not specified");
+    const patientHistoryNarrative = `病史(Patient History)\n${ageSexSentence()}\n${pastMedicalHistory}\n${presentIllness}`;
     const secondaryHistory = assembleSecondaryHistory();
     const vitalsText = `BH: ${getVal("vitals_bh", "--")} cm, BW: ${getVal("vitals_bw", "--")} kg, T: ${getVal("vitals_t", "--")} C, P: ${getVal("vitals_p", "--")} bpm, R: ${getVal("vitals_r", "--")} /min, BP: ${getVal("vitals_bp", "--/--")} mmHg, Pain score: ${getVal("vitals_pain", "--")}`;
 
@@ -300,7 +317,6 @@ Treatment goal: ${getVal("plan_treatment_goal")}`;
 
     return [
       chiefComplaint,
-      pastMedicalHistory,
       patientHistoryNarrative,
       secondaryHistory,
       `Psychosocial Assessment\n${getVal("psychosocial_assessment")}`,

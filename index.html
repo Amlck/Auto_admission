@@ -54,18 +54,24 @@
       </section>
       <section id="historySection" data-title="History">
         <h2>Routine History</h2>
-        <h3>Patient History & Present Illness Narrative</h3>
-        <textarea
-          id="patientHistoryNarrative"
-          rows="12"
-          placeholder="e.g., This is a 31-year-old woman with..."
-        ></textarea>
+        <label>Age:
+          <input type="text" id="hist_age" placeholder="e.g., 56" />
+        </label>
+        <label>Sex:
+          <input type="text" id="hist_sex" placeholder="e.g., woman" />
+        </label>
         <h3>Past Medical History (Structured)</h3>
         <textarea
           id="hist_pmh"
           rows="4"
           placeholder="1. Unclassified connective tissue disease...
 2. Suspected secondary Sjogren's syndrome"
+        ></textarea>
+        <h3>Present Illness Narrative</h3>
+        <textarea
+          id="patientHistoryNarrative"
+          rows="12"
+          placeholder="e.g., She has been in her usual health until..."
         ></textarea>
         <h3>Medication Allergy</h3>
         <div class="grid">
